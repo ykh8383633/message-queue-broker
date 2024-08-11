@@ -1,5 +1,8 @@
 package com.example.server
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.nio.channels.SelectionKey
@@ -16,6 +19,7 @@ class SocketServer(
     private lateinit var  _selector: Selector
     private lateinit var _server: ServerSocketChannel
     private val _latch = CountDownLatch(1);
+    private var _serverThread: Thread? = null
 
     fun startup() {
         _selector = Selector.open()
@@ -35,42 +39,48 @@ class SocketServer(
 
     }
 
-    private fun listen() = thread {
-        try{
-            println("start listening...")
+    private fun listen() {
+        _serverThread = thread {
+            try{
+                println("start listening...")
 
-            while(true){
-                _selector.select()
-
-                val selectedKeys = _selector.selectedKeys()
-                val iterator = selectedKeys.iterator()
-
-                while(iterator.hasNext()){
-                    val key = iterator.next()
-
-                    if(key.isAcceptable){
-                        val server = key.channel() as ServerSocketChannel
-                        val client = server.accept()
-                        client.configureBlocking(false)
-                        client.register(_selector, SelectionKey.OP_READ)
+                while(!_serverThread!!.isInterrupted){
+                    if(_selector.select(500) == 0){
+                        continue;
                     }
-                    else if(key.isReadable){
-                        val channel = key.channel() as SocketChannel
-                        val buffer = ByteBuffer.allocate(256)
 
-                        channel.read(buffer)
-                        val data = String(buffer.array()).trim();
-                        println(data)
+                    val selectedKeys = _selector.selectedKeys()
+                    selectedKeys.forEach { key ->
+                        selectedKeys.remove(key)
+
+                        if(key.isAcceptable){
+                            val server = key.channel() as ServerSocketChannel
+                            val client = server.accept()
+                            client.configureBlocking(false)
+                            client.register(_selector, SelectionKey.OP_READ)
+                        }
+                        else if(key.isReadable){
+                            val channel = key.channel() as SocketChannel
+                            val buffer = ByteBuffer.allocate(256)
+
+                            channel.read(buffer)
+                            val data = String(buffer.array()).trim();
+
+                            CoroutineScope(Dispatchers.Default).launch {
+
+                            }
+                        }
+                        else if(key.isWritable){}
                     }
-                    else if(key.isWritable){}
                 }
             }
-        }
-        catch(e: Exception){
-            println(e.message)
-        }
-        finally {
-            _latch.countDown()
+            catch(e: Exception){
+                // todo
+                throw e
+            }
+            finally {
+                _latch.countDown()
+            }
         }
     }
 
@@ -80,12 +90,18 @@ class SocketServer(
 
     fun close() {
         println("shut down server...")
+        if(_serverThread?.isAlive == true){
+            _serverThread?.interrupt()
+            _serverThread?.join()
+        }
 
         if(_server.isOpen){
             _server.close()
         }
 
         if(_selector.isOpen){
+            println("selector close")
+            _selector.wakeup()
             _selector.close()
         }
     }
