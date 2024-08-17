@@ -2,11 +2,10 @@ package com.example.server.context
 
 import java.nio.ByteBuffer
 import java.nio.channels.SelectionKey
-import java.nio.channels.Selector
 import java.nio.channels.ServerSocketChannel
 import java.nio.channels.SocketChannel
 
-class ServerSocketChannelContext() {
+class ServerSocketChannelContext {
     var readBuffer: ByteArray? = null
         private set
     private var _writeBuffer: ByteArray? = null
@@ -22,10 +21,10 @@ class ServerSocketChannelContext() {
         while(true){
             byteBuffer.clear()
             val readBytes = channel.read(byteBuffer)
+            byteBuffer.flip()
 
             if(readBytes > 0){
-                byteBuffer.flip()
-                buffers += byteBuffer.array()
+                buffers += byteBuffer.array().slice(0..<byteBuffer.limit())
             }
             else if(readBytes == 0){
                 readBuffer = buffers
@@ -35,7 +34,6 @@ class ServerSocketChannelContext() {
                 close()
             }
         }
-
     }
 
     private fun handleWrite(channel: SocketChannel){
@@ -82,12 +80,9 @@ class ServerSocketChannelContext() {
         (key.channel() as SocketChannel)
             .apply { this.configureBlocking(false) }
             .run { handleWrite(this) }
-
-
     }
 
     internal fun close() {
-        if (_acceptableKey?.channel()?.isOpen == true)  _acceptableKey?.channel()?.close()
         if (_readableKey?.channel()?.isOpen == true) _readableKey?.channel()?.close()
         if(_readableKey?.channel()?.isOpen == true) _writableKey?.channel()?.close()
     }

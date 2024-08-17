@@ -28,11 +28,10 @@ class SocketServer(
 
     fun startup() {
         _selector = Selector.open()
-        _server = ServerSocketChannel.open().let { socket ->
-            socket.bind(InetSocketAddress(_port))
-            socket.configureBlocking(false)
-            socket.register(_selector, SelectionKey.OP_ACCEPT)
-            return@let socket
+        _server = ServerSocketChannel.open().apply {
+            this.bind(InetSocketAddress(_port))
+            this.configureBlocking(false)
+            this.register(_selector, SelectionKey.OP_ACCEPT)
         }
 
         // configure server
