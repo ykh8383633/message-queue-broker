@@ -1,8 +1,9 @@
 package com.example.messageQueue.application
 
 import com.example.server.SocketServer
-import com.example.server.context.RequestChannelContext
+import com.example.server.context.ServerSocketChannelContext
 import com.example.server.handler.RequestChannelHandler
+import java.nio.ByteBuffer
 
 abstract class ServerApplicationBase: ApplicationBase() {
     protected lateinit var server: SocketServer
@@ -23,9 +24,11 @@ abstract class ServerApplicationBase: ApplicationBase() {
 }
 
 class RequestHandler : RequestChannelHandler {
-    override suspend fun handleRequest(context: RequestChannelContext) {
-        val data = String(context.requestBuffer.array()).trim()
+    override suspend fun handleRequest(context: ServerSocketChannelContext) {
+        val data = context.getStringData()
         println(data)
+        val buffer = "this is response".toByteArray()
+        context.doWrite(buffer)
     }
 
 }

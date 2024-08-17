@@ -1,17 +1,16 @@
 package com.example.server
 
-import com.example.server.context.RequestChannelContext
+import com.example.server.context.ServerSocketChannelContext
+import com.example.server.context.context
 import com.example.server.handler.RequestChannelHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import java.net.InetSocketAddress
-import java.nio.ByteBuffer
-import java.nio.channels.Channel
 import java.nio.channels.SelectionKey
 import java.nio.channels.Selector
 import java.nio.channels.ServerSocketChannel
-import java.nio.channels.SocketChannel
 import java.util.concurrent.CountDownLatch
 import kotlin.concurrent.thread
 
@@ -23,7 +22,7 @@ class SocketServer(
     private lateinit var  _selector: Selector
     private lateinit var _server: ServerSocketChannel
     private val _latch = CountDownLatch(1);
-    private var _serverThread: Thread? = null
+    private var _listener: Thread? = null
 
 
 
@@ -42,7 +41,7 @@ class SocketServer(
     }
 
     private fun listen() {
-        _serverThread = thread {
+        _listener = thread {
             try{
                 println("start listening...")
 
@@ -51,39 +50,28 @@ class SocketServer(
                         continue;
                     }
 
-                    _selector.selectedKeys().apply {
-                        forEach{ key ->
-                            this.remove(key)
+                    val selectedKeys = _selector.selectedKeys();
+                    _selector.selectedKeys().forEach{ key ->
+                        selectedKeys.remove(key)
 
-                            if(key.isAcceptable){
-                                val server = key.channel() as ServerSocketChannel
-                                val client = server.accept()
-                                client.configureBlocking(false)
-                                client.register(_selector, SelectionKey.OP_READ)
+                        if(key.isAcceptable){
+                            ServerSocketChannelContext().apply {
+                                this.startContext(key)
                             }
-                            else if(key.isReadable){
-                                val channel = key.channel() as SocketChannel
-                                val buffer = ByteBuffer.allocate(256)
+                        }
+                        else if(key.isReadable){
+                            val context = key.context() ?: throw Exception("context is null")
+                            context.read(key)
 
-                                channel.read(buffer)
-                                val context = RequestChannelContext(buffer)
-
-                                CoroutineScope(Dispatchers.Default).launch {
-                                    handler.handleRequest(context)
-                                    if(!context.doWrite){
-                                        channel.close(buffer)
-                                        return@launch
-                                    }
-                                    channel.register(_selector, SelectionKey.OP_WRITE, context.responseBuffer)
-                                }
+                            CoroutineScope(Dispatchers.Default).launch {
+                                println("coroutine launched")
+                                handler.handleRequest(context)
                             }
-                            else if(key.isWritable){
-                                val channel = key.channel() as SocketChannel
-                                val buffer = key.attachment() as ByteBuffer
-
-                                channel.write(buffer)
-                                channel.close(buffer)
-                            }
+                        }
+                        else if(key.isWritable){
+                            val context = key.context() ?: throw Exception("context is null")
+                            context.write(key)
+                            context.close()
                         }
                     }
                 }
@@ -104,9 +92,9 @@ class SocketServer(
 
     fun close() {
         println("shut down server...")
-        if(_serverThread?.isAlive == true){
-            _serverThread?.interrupt()
-            _serverThread?.join()
+        if(_listener?.isAlive == true){
+            _listener?.interrupt()
+            _listener?.join()
         }
 
         if(_server.isOpen){
@@ -120,9 +108,3 @@ class SocketServer(
     }
 }
 
-fun Channel.close(byteBuffer: ByteBuffer?){
-    if(byteBuffer?.hasRemaining() == false){
-        byteBuffer.clear()
-    }
-    this.close()
-}
