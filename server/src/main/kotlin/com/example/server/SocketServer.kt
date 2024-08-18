@@ -51,26 +51,29 @@ class SocketServer(
 
                     val selectedKeys = _selector.selectedKeys();
                     _selector.selectedKeys().forEach{ key ->
+
                         selectedKeys.remove(key)
+                        val context: ServerSocketChannelContext;
 
                         if(key.isAcceptable){
-                            ServerSocketChannelContext().apply {
-                                this.startContext(key)
-                            }
+                            context = ServerSocketChannelContext()
+                                .also { it.startContext(key) }
                         }
                         else if(key.isReadable){
-                            val context = key.context() ?: throw Exception("context is null")
+                            context = key.context() ?: throw Exception("context is null")
                             context.read(key)
 
-                            CoroutineScope(Dispatchers.Default).launch {
-                                println("coroutine launched")
+                            CoroutineScope(Dispatchers.IO).launch {
                                 handler.handleRequest(context)
                             }
                         }
                         else if(key.isWritable){
-                            val context = key.context() ?: throw Exception("context is null")
+                            context = key.context() ?: throw Exception("context is null")
                             context.write(key)
-                            context.close()
+
+                            if(context.isFinished){
+                                context.close()
+                            }
                         }
                     }
                 }

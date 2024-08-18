@@ -6,6 +6,7 @@ import java.nio.channels.ServerSocketChannel
 import java.nio.channels.SocketChannel
 
 class ServerSocketChannelContext {
+    var isFinished = false
     var readBuffer: ByteArray? = null
         private set
     private var _writeBuffer: ByteArray? = null
@@ -14,9 +15,11 @@ class ServerSocketChannelContext {
     private var _readableKey: SelectionKey? = null
     private var _writableKey: SelectionKey? = null
 
+
+
     private fun handleRead(channel: SocketChannel) {
         val byteBuffer = ByteBuffer.allocate(256);
-        var buffers: ByteArray = byteArrayOf()
+        var buffer: ByteArray = byteArrayOf()
 
         while(true){
             byteBuffer.clear()
@@ -24,13 +27,17 @@ class ServerSocketChannelContext {
             byteBuffer.flip()
 
             if(readBytes > 0){
-                buffers += byteBuffer.array().slice(0..<byteBuffer.limit())
-            }
-            else if(readBytes == 0){
-                readBuffer = buffers
+                var bf = byteBuffer.array()
+
+                if(byteBuffer.hasRemaining()){
+                    bf = bf.slice(0..<byteBuffer.limit()).toByteArray()
+                }
+
+                buffer += bf
+            } else if(readBytes == 0){
+                readBuffer = buffer
                 break;
-            }
-            else {
+            } else {
                 close()
             }
         }
@@ -53,14 +60,12 @@ class ServerSocketChannelContext {
         _acceptableKey = key
 
         val server = key.channel() as ServerSocketChannel
-        val channel = server.accept()
-        channel.configureBlocking(false)
-
-        channel.register(key.selector(), SelectionKey.OP_READ, this)
+        server.accept()
+            .apply { this.configureBlocking(false) }
+            .also { it.register(key.selector(), SelectionKey.OP_READ, this)}
     }
 
     internal fun read(key: SelectionKey) {
-        println("read channel")
         if(!key.isReadable){
             throw Exception("invalid key type")
         }
@@ -82,7 +87,7 @@ class ServerSocketChannelContext {
             .run { handleWrite(this) }
     }
 
-    internal fun close() {
+    fun close() {
         if (_readableKey?.channel()?.isOpen == true) _readableKey?.channel()?.close()
         if(_readableKey?.channel()?.isOpen == true) _writableKey?.channel()?.close()
     }
@@ -92,6 +97,10 @@ class ServerSocketChannelContext {
         val channel = key.channel() as SocketChannel
         _writeBuffer = buffer
         channel.register(key.selector(), SelectionKey.OP_WRITE, this)
+    }
+
+    fun doClose() {
+        isFinished = true
     }
 
     fun getStringData(): String {
