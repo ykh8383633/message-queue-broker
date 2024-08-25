@@ -8,19 +8,17 @@ import java.nio.ByteBuffer
 
 abstract class ServerApplicationBase: ApplicationBase() {
     protected lateinit var server: SocketServer
-    private val configurer: ServerConfigurer = ServerConfigurer()
+    private val serverConfigurer: ServerConfigurer = ServerConfigurer()
 
     override fun run() {
         configure()
-        configureServer(configurer)
+        configureServer(serverConfigurer)
 
-        if(configurer.requestHandler == null){
-            throw Exception("request handler is not registered")
+        SocketServer(8080).apply {
+            serverConfigurer.requestHandlers.forEach{ server.registerPipeline(it) }
+            server.startup()
+            server.waitForShutDown()
         }
-
-        server = SocketServer(8080, configurer.requestHandler!!)
-        server.startup()
-        server.waitForShutDown()
     }
 
     override fun onStop() {

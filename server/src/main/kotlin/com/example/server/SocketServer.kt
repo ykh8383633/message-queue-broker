@@ -17,12 +17,12 @@ import kotlin.concurrent.thread
 
 class SocketServer(
     private val _port: Int,
-    private var handler: RequestChannelHandler
 ) {
     private lateinit var  _selector: Selector
     private lateinit var _server: ServerSocketChannel
     private val _latch = CountDownLatch(1);
     private var _listener: Thread? = null
+    private val _handlers: MutableList<RequestChannelHandler> = mutableListOf()
 
 
 
@@ -37,6 +37,10 @@ class SocketServer(
         // configure server
 
         listen();
+    }
+
+    fun registerPipeline(handler: RequestChannelHandler) {
+        _handlers.add(handler)
     }
 
     private fun listen() {
@@ -64,7 +68,7 @@ class SocketServer(
                             context.read(key)
 
                             CoroutineScope(Dispatchers.IO).launch {
-                                handler.handleRequest(context)
+                                _handlers.forEach{ it.handleRequest(context)}
                             }
                         }
                         else if(key.isWritable){

@@ -4,11 +4,11 @@ import com.example.messageQueue.server.handler.RequestHandlerBase
 import com.example.server.handler.RequestChannelHandler
 
 class ServerConfigurer {
-    var requestHandler: RequestHandlerBase? = null
+    var requestHandlers: MutableList<RequestHandlerBase> = mutableListOf()
     var port: Int = 8080
 
     fun registerRequestHandler(handler: RequestHandlerBase){
-        this.requestHandler = handler
+        this.requestHandlers.add(handler)
     }
 
 }

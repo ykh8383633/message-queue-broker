@@ -7,5 +7,6 @@ class RequestHandler: RequestHandlerBase() {
 
     override suspend fun handle(requestContext: RequestContext) {
         requestContext.response("hi".toByteArray())
+        disposeContext(requestContext)
     }
 }
