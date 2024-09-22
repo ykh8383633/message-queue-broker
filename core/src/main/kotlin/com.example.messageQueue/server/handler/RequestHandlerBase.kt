@@ -7,19 +7,15 @@ import com.example.server.handler.RequestChannelHandler
 import java.util.concurrent.ConcurrentHashMap
 
 abstract class RequestHandlerBase: RequestChannelHandler {
-    protected val requestContextMap: ConcurrentHashMap<Int, RequestContext> = ConcurrentHashMap()
 
     override suspend fun handleRequest(context: ServerSocketChannelContext) {
-        val requestContext = createRequestContext(context)
+        if(context.attachment == null){
+            context.attachment = RequestContextImpl(context)
+        }
+
+        val requestContext = context.attachment as RequestContext
         handle(requestContext)
-    }
-
-    private fun createRequestContext(context: ServerSocketChannelContext): RequestContext {
-        return requestContextMap.getOrPut(context.hashCode()){ RequestContextImpl(context) }
-    }
-
-    protected fun disposeContext(requestContext: RequestContext) {
-        requestContextMap.remove(requestContext.serverContext.hashCode())
+        context.attachment = null
     }
 
     abstract suspend fun handle(requestContext: RequestContext)

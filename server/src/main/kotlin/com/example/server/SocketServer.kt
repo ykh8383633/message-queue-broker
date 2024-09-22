@@ -39,7 +39,7 @@ class SocketServer(
         listen();
     }
 
-    fun registerPipeline(handler: RequestChannelHandler) {
+    fun registerHandler(handler: RequestChannelHandler) {
         _handlers.add(handler)
     }
 
@@ -54,8 +54,8 @@ class SocketServer(
                     }
 
                     val selectedKeys = _selector.selectedKeys();
-                    _selector.selectedKeys().forEach{ key ->
 
+                    _selector.selectedKeys().forEach{ key ->
                         selectedKeys.remove(key)
                         val context: ServerSocketChannelContext;
 

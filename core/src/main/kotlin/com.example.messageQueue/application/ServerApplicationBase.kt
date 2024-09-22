@@ -14,11 +14,10 @@ abstract class ServerApplicationBase: ApplicationBase() {
         configure()
         configureServer(serverConfigurer)
 
-        SocketServer(8080).apply {
-            serverConfigurer.requestHandlers.forEach{ server.registerPipeline(it) }
-            server.startup()
-            server.waitForShutDown()
-        }
+        this.server = SocketServer(8080)
+        serverConfigurer.requestHandlers.forEach{ server.registerHandler(it) }
+        server.startup()
+        server.waitForShutDown()
     }
 
     override fun onStop() {

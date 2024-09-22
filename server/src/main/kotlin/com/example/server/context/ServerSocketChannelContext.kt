@@ -6,6 +6,7 @@ import java.nio.channels.ServerSocketChannel
 import java.nio.channels.SocketChannel
 
 class ServerSocketChannelContext {
+    var attachment: Any? = null
     var isFinished = false
     var readBuffer: ByteArray? = null
         private set
@@ -48,9 +49,32 @@ class ServerSocketChannelContext {
             _writeBuffer = byteArrayOf()
         }
 
-        val byteBuffer = ByteBuffer.wrap(_writeBuffer)
-        byteBuffer?.flip()
-        channel.write(byteBuffer)
+        val cap = 256
+        val byteBuffer = ByteBuffer.allocate(cap)
+
+        var page = 0
+        while(true){
+            byteBuffer.clear()
+
+            val offset = page * cap
+            var limit = (page + 1) * cap
+
+            if(limit > (_writeBuffer?.size ?: 0)){
+                limit = _writeBuffer?.size ?: 0
+            }
+
+            byteBuffer.put(_writeBuffer?.slice(offset..<limit)?.toByteArray())
+            byteBuffer?.flip()
+            val writeBytes = channel.write(byteBuffer)
+
+            if(writeBytes == 0){
+                _writeBuffer = null
+                break
+            }
+
+            page++
+        }
+
     }
 
     internal fun startContext(key: SelectionKey) {
@@ -84,7 +108,14 @@ class ServerSocketChannelContext {
 
         (key.channel() as SocketChannel)
             .apply { this.configureBlocking(false) }
-            .run { handleWrite(this) }
+            .run {
+                handleWrite(this)
+                return@run this
+            }
+            .also {
+                key.interestOps(key.interestOps() and SelectionKey.OP_WRITE.inv())
+                it.register(key.selector(), SelectionKey.OP_READ, this)
+            }
     }
 
     fun close() {
