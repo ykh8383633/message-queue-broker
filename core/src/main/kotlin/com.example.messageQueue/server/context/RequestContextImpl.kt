@@ -8,7 +8,6 @@ class RequestContextImpl(
     override val request: Request = Request(serverContext.readBuffer!!)
 
     override fun response(buffer: ByteArray) {
-        println(buffer.toString(Charsets.UTF_8))
         serverContext.doWrite(buffer)
     }
 }

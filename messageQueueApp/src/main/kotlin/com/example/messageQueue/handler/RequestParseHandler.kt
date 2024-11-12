@@ -2,12 +2,13 @@ package com.example.messageQueue.handler
 
 import com.example.messageQueue.server.context.RequestContext
 import com.example.messageQueue.server.handler.RequestHandlerBase
-import java.nio.charset.Charset
 
-class RequestHandler: RequestHandlerBase() {
+class RequestParseHandler: RequestHandlerBase() {
 
     override suspend fun handle(context: RequestContext) {
-        println(context.request.buffer.toString(Charsets.UTF_8))
-        context.response("response".toByteArray())
+        val req = context.request
+        val reqBuff = req.buffer
+
     }
+
 }

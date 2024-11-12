@@ -15,8 +15,7 @@ abstract class RequestHandlerBase: RequestChannelHandler {
 
         val requestContext = context.attachment as RequestContext
         handle(requestContext)
-        context.attachment = null
     }
 
-    abstract suspend fun handle(requestContext: RequestContext)
+    abstract suspend fun handle(context: RequestContext)
 }

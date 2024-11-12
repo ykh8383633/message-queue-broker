@@ -61,7 +61,7 @@ class SocketServer(
 
                         if(key.isAcceptable){
                             context = ServerSocketChannelContext()
-                                .also { it.startContext(key) }
+                            context.startContext(key)
                         }
                         else if(key.isReadable){
                             context = key.context() ?: throw Exception("context is null")
