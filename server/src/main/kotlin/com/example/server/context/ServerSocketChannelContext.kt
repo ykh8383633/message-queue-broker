@@ -1,11 +1,17 @@
 package com.example.server.context
 
+import com.example.server.event.Event
+import com.example.server.event.EventLoop
+import com.example.server.event.EventType
+import com.example.server.event.NioEvent
 import java.nio.ByteBuffer
 import java.nio.channels.SelectionKey
 import java.nio.channels.ServerSocketChannel
 import java.nio.channels.SocketChannel
 
-class ServerSocketChannelContext {
+class ServerSocketChannelContext (
+    val loop: EventLoop
+) {
     var attachment: Any? = null
     var isFinished = false
     var readBuffer: ByteArray? = null
@@ -77,45 +83,41 @@ class ServerSocketChannelContext {
 
     }
 
-    internal fun startContext(key: SelectionKey) {
+    internal fun startContext(e: NioEvent) {
+        val key = e.key
         if(!key.isAcceptable){
             throw Exception("invalid key type")
         }
         _acceptableKey = key
 
         val server = key.channel() as ServerSocketChannel
-        server.accept()
-            .apply { this.configureBlocking(false) }
-            .also { it.register(key.selector(), SelectionKey.OP_READ, this)}
+        val ch = server.accept().apply { this.configureBlocking(false) }
+        loop.subscribe(ch, mutableSetOf(EventType.READ), this)
     }
 
-    internal fun read(key: SelectionKey) {
+    internal fun read(e: NioEvent) {
+        val key = e.key
         if(!key.isReadable){
             throw Exception("invalid key type")
         }
         _readableKey = key
 
-        (key.channel() as SocketChannel)
-            .apply { this.configureBlocking(false) }
-            .run {handleRead(this)}
+        val socket = (key.channel() as SocketChannel).apply { this.configureBlocking(false) }
+        handleRead(socket)
     }
 
-    internal fun write(key: SelectionKey){
+    internal fun write(e: NioEvent){
+        val key = e.key
         if(!key.isWritable) {
             throw Exception("invalid key type")
         }
         _writableKey = key;
 
-        (key.channel() as SocketChannel)
-            .apply { this.configureBlocking(false) }
-            .run {
-                handleWrite(this)
-                return@run this
-            }
-            .also {
-                key.interestOps(key.interestOps() and SelectionKey.OP_WRITE.inv())
-                it.register(key.selector(), SelectionKey.OP_READ, this)
-            }
+        val ch = (key.channel() as SocketChannel).apply { this.configureBlocking(false) }
+        handleWrite(ch)
+
+        key.interestOpsAnd(SelectionKey.OP_WRITE.inv())
+        loop.subscribe(key, mutableSetOf(EventType.READ))
     }
 
     fun close() {
@@ -125,9 +127,9 @@ class ServerSocketChannelContext {
 
     fun doWrite(buffer: ByteArray) {
         val key = (_readableKey ?: throw Exception("readableKey is null"))
-        val channel = key.channel() as SocketChannel
+        val ch = key.channel() as SocketChannel
         _writeBuffer = buffer
-        channel.register(key.selector(), SelectionKey.OP_WRITE, this)
+        loop.subscribe(key, mutableSetOf(EventType.WRITE))
     }
 
     fun doClose() {

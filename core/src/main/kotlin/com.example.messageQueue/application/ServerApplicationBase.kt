@@ -8,14 +8,14 @@ import java.nio.ByteBuffer
 
 abstract class ServerApplicationBase: ApplicationBase() {
     protected lateinit var server: SocketServer
-    private val serverConfigurer: ServerConfigurer = ServerConfigurer()
+    private val serverConfigure: ServerConfigurer = ServerConfigurer()
 
     override fun run() {
         configure()
-        configureServer(serverConfigurer)
+        configureServer(serverConfigure)
 
         this.server = SocketServer(8080)
-        serverConfigurer.requestHandlers.forEach{ server.registerHandler(it) }
+        serverConfigure.requestHandlers.forEach{ server.registerHandler(it) }
         server.startup()
         server.waitForShutDown()
     }
