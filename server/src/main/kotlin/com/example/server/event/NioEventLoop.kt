@@ -78,6 +78,15 @@ class NioEventLoop(): EventLoop {
         key.interestOps(ops);
     }
 
+    override fun unsubscribe(key: SelectionKey, eventTypes: MutableSet<EventType>) {
+        var ops = key.interestOps();
+
+        eventTypes.forEach{
+            ops = ops and nioOpsOf(it).inv();
+        }
+        key.interestOps(ops);
+    }
+
     override fun registerHandler(eventType: EventType, handler: (e: NioEvent) -> Unit) {
         _handlers.register(eventType, handler)
     }
@@ -95,6 +104,7 @@ class NioEventLoop(): EventLoop {
 
         fun register(event: EventType, handler: (e: NioEvent) -> Unit) {
             val wLock = _lock.writeLock()
+
             wLock.lock()
             val handlers = this._handlerMap.getOrPut(event) { mutableListOf() }
             handlers.add(handler);

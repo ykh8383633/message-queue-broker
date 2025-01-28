@@ -116,7 +116,8 @@ class ServerSocketChannelContext (
         val ch = (key.channel() as SocketChannel).apply { this.configureBlocking(false) }
         handleWrite(ch)
 
-        key.interestOpsAnd(SelectionKey.OP_WRITE.inv())
+        // key.interestOpsAnd(SelectionKey.OP_WRITE.inv())
+        loop.unsubscribe(key, mutableSetOf(EventType.WRITE));
         loop.subscribe(key, mutableSetOf(EventType.READ))
     }
 

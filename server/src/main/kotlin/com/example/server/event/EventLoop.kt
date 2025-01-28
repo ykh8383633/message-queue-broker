@@ -7,5 +7,6 @@ interface EventLoop {
     fun subscribe(channel: SelectableChannel, eventTypes: MutableSet<EventType>)
     fun subscribe(channel: SelectableChannel, eventTypes: MutableSet<EventType>, attachment: Any?)
     fun subscribe(key: SelectionKey, eventTypes: MutableSet<EventType>)
+    fun unsubscribe(key: SelectionKey, eventTypes: MutableSet<EventType>)
     fun registerHandler(eventType: EventType, handler: (e: NioEvent) -> Unit)
 }
